@@ -1,0 +1,607 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Pitchline — Football Predictions</title>
+<meta name="description" content="Data-driven football match predictions. Today's best picks, ranked by confidence.">
+<meta property="og:title" content="Pitchline — Football Predictions">
+<meta property="og:description" content="Data-driven football match predictions. Today's best picks, ranked by confidence.">
+<meta property="og:type" content="website">
+<meta name="theme-color" content="#0A0C0E">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" type="image/png" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=Roboto+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --pitch-black: #0A0C0E;
+    --surface: #14181B;
+    --surface-raised: #1B2024;
+    --hairline: #262C30;
+    --text: #ECEFF1;
+    --muted: #7B8489;
+    --lime: #C8FF4D;
+    --lime-dim: #8FB838;
+    --red: #FF5C5C;
+    --amber: #FFB648;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    background: var(--pitch-black);
+    color: var(--text);
+    font-family: 'Inter', sans-serif;
+    height: 100%;
+  }
+  body {
+    padding-bottom: 86px;
+    background-image:
+      radial-gradient(ellipse 600px 300px at 50% -10%, rgba(200,255,77,0.06), transparent);
+  }
+  .display { font-family: 'Oswald', sans-serif; }
+  .mono { font-family: 'Roboto Mono', monospace; }
+
+  /* ---- Top bar ---- */
+  .topbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 18px 18px 6px;
+  }
+  .wordmark {
+    display: flex;
+    align-items: baseline;
+    gap: 2px;
+  }
+  .wordmark .pitch { font-family: 'Oswald', sans-serif; font-weight: 700; font-size: 21px; letter-spacing: 0.5px; }
+  .wordmark .line { font-family: 'Oswald', sans-serif; font-weight: 400; font-size: 21px; color: var(--lime); letter-spacing: 0.5px; }
+  .clock {
+    font-family: 'Roboto Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+    background: var(--surface);
+    border: 1px solid var(--hairline);
+    padding: 5px 10px;
+    border-radius: 20px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .clock .dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--lime);
+    box-shadow: 0 0 6px var(--lime);
+    animation: pulse-dot 1.6s ease-in-out infinite;
+  }
+  @keyframes pulse-dot {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.4; transform: scale(0.8); }
+  }
+
+  /* ---- Live ticker banner ---- */
+  .ticker-wrap {
+    overflow: hidden;
+    border-top: 1px solid var(--hairline);
+    border-bottom: 1px solid var(--hairline);
+    background: var(--surface);
+    padding: 9px 0;
+    margin-top: 4px;
+  }
+  .ticker-track {
+    display: flex;
+    width: max-content;
+    animation: ticker-scroll 32s linear infinite;
+  }
+  .ticker-wrap:hover .ticker-track { animation-play-state: paused; }
+  @keyframes ticker-scroll {
+    from { transform: translateX(0); }
+    to { transform: translateX(-50%); }
+  }
+  .ticker-item {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding: 0 18px;
+    border-right: 1px solid var(--hairline);
+    white-space: nowrap;
+    font-size: 12px;
+  }
+  .ticker-item .t-teams { font-family: 'Oswald', sans-serif; font-weight: 500; color: var(--text); }
+  .ticker-item .t-score { font-family: 'Roboto Mono', monospace; font-weight: 700; color: var(--lime); }
+  .ticker-item .t-min { font-size: 10px; color: var(--red); font-weight: 600; }
+  .ticker-item .t-live-dot {
+    width: 5px; height: 5px; border-radius: 50%; background: var(--red);
+    animation: pulse-dot 1.4s ease-in-out infinite;
+  }
+
+  /* ---- Entrance animation for cards ---- */
+  @keyframes rise-in {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .hero { animation: rise-in 0.5s ease-out; }
+  .row { animation: rise-in 0.45s ease-out backwards; }
+  .row:nth-child(1) { animation-delay: 0.05s; }
+  .row:nth-child(2) { animation-delay: 0.1s; }
+  .row:nth-child(3) { animation-delay: 0.15s; }
+  .row:nth-child(4) { animation-delay: 0.2s; }
+
+  .dial-progress {
+    stroke-dasharray: 226.2;
+    stroke-dashoffset: 226.2;
+    animation: dial-fill 1.3s ease-out 0.3s forwards;
+  }
+  @keyframes dial-fill {
+    to { stroke-dashoffset: 72.4; }
+  }
+
+  /* ---- Hero: Best Pick, signature element = confidence dial ---- */
+  .hero {
+    margin: 14px 16px 8px;
+    background: linear-gradient(180deg, var(--surface-raised), var(--surface));
+    border: 1px solid var(--hairline);
+    border-radius: 20px;
+    padding: 20px 18px 18px;
+    position: relative;
+    overflow: hidden;
+  }
+  .hero::before {
+    content: "";
+    position: absolute;
+    top: -40%; right: -20%;
+    width: 220px; height: 220px;
+    background: radial-gradient(circle, rgba(200,255,77,0.10), transparent 70%);
+    pointer-events: none;
+  }
+  .hero-eyebrow {
+    font-family: 'Oswald', sans-serif;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 1.6px;
+    text-transform: uppercase;
+    color: var(--lime);
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    margin-bottom: 14px;
+  }
+  .hero-eyebrow .bar { width: 14px; height: 2px; background: var(--lime); display: inline-block; }
+
+  .matchup {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+  }
+  .matchup .teams {
+    flex: 1;
+  }
+  .matchup .team-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 9px;
+  }
+  .crest {
+    width: 26px; height: 26px;
+    border-radius: 7px;
+    background: var(--hairline);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 700;
+    flex-shrink: 0;
+    overflow: hidden;
+    padding: 3px;
+  }
+  .crest img {
+    width: 100%; height: 100%;
+    object-fit: contain;
+  }
+  .crest-sm {
+    width: 18px; height: 18px;
+    border-radius: 5px;
+    background: var(--hairline);
+    display: inline-flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+    overflow: hidden;
+    padding: 2px;
+    margin-right: 2px;
+    vertical-align: middle;
+  }
+  .crest-sm img { width: 100%; height: 100%; object-fit: contain; }
+  .team-name {
+    font-family: 'Oswald', sans-serif;
+    font-size: 16px;
+    font-weight: 500;
+  }
+  .team-row.pick .team-name { font-weight: 700; }
+  .team-row.pick .crest { background: var(--lime); color: #0A0C0E; }
+  .vs-meta {
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 10px;
+  }
+
+  /* signature: circular confidence dial, scoreboard style */
+  .dial {
+    width: 84px; height: 84px;
+    position: relative;
+    flex-shrink: 0;
+  }
+  .dial svg { transform: rotate(-90deg); }
+  .dial-track { stroke: var(--hairline); }
+  .dial-progress { stroke: var(--lime); stroke-linecap: round; transition: stroke-dashoffset 1s ease; }
+  .dial-label {
+    position: absolute; inset: 0;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+  }
+  .dial-label .pct {
+    font-family: 'Roboto Mono', monospace;
+    font-weight: 700;
+    font-size: 19px;
+    color: var(--lime);
+    line-height: 1;
+  }
+  .dial-label .pct-tag {
+    font-size: 8px;
+    color: var(--muted);
+    letter-spacing: 0.5px;
+    margin-top: 3px;
+    text-transform: uppercase;
+  }
+
+  .hero-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 16px;
+    padding-top: 14px;
+    border-top: 1px solid var(--hairline);
+  }
+  .hero-footer .tags { display: flex; gap: 6px; }
+  .tag {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.4px;
+    text-transform: uppercase;
+    padding: 4px 8px;
+    border-radius: 5px;
+    background: rgba(255,255,255,0.05);
+    color: var(--muted);
+  }
+  .btn-detail {
+    font-family: 'Oswald', sans-serif;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--pitch-black);
+    background: var(--lime);
+    border: none;
+    padding: 9px 16px;
+    border-radius: 10px;
+    letter-spacing: 0.3px;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+  .btn-detail:active { transform: scale(0.96); }
+
+  /* ---- Section ---- */
+  .section-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    padding: 22px 18px 10px;
+  }
+  .section-head h2 {
+    font-family: 'Oswald', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--text);
+  }
+  .section-head .count {
+    font-family: 'Roboto Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+  }
+
+  /* ---- Match list row, scoreboard-strip style ---- */
+  .matchlist { padding: 0 16px; display: flex; flex-direction: column; gap: 8px; }
+  .row {
+    background: var(--surface);
+    border: 1px solid var(--hairline);
+    border-radius: 14px;
+    padding: 13px 14px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .row .league-strip {
+    width: 3px; align-self: stretch;
+    border-radius: 3px;
+    background: var(--hairline);
+    flex-shrink: 0;
+  }
+  .row.high .league-strip { background: var(--lime); }
+  .row.mid .league-strip { background: var(--amber); }
+  .row.low .league-strip { background: var(--red); }
+
+  .row .row-main { flex: 1; min-width: 0; }
+  .row .row-teams {
+    font-family: 'Oswald', sans-serif;
+    font-size: 14.5px;
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .row .row-meta {
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 3px;
+    display: flex;
+    gap: 8px;
+  }
+  .row .pick-side {
+    font-size: 10.5px;
+    font-weight: 600;
+    color: var(--lime);
+  }
+
+  .row .row-pct {
+    text-align: right;
+    flex-shrink: 0;
+  }
+  .row .row-pct .num {
+    font-family: 'Roboto Mono', monospace;
+    font-weight: 700;
+    font-size: 17px;
+  }
+  .row.high .row-pct .num { color: var(--lime); }
+  .row.mid .row-pct .num { color: var(--amber); }
+  .row.low .row-pct .num { color: var(--red); }
+  .row .row-pct .num-tag {
+    font-size: 9px;
+    color: var(--muted);
+    letter-spacing: 0.3px;
+  }
+
+  /* ---- Bottom nav, thumb zone ---- */
+  nav.bottom-nav {
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    background: rgba(20,24,27,0.92);
+    backdrop-filter: blur(14px);
+    border-top: 1px solid var(--hairline);
+    display: flex;
+    padding: 10px 8px calc(10px + env(safe-area-inset-bottom));
+  }
+  nav.bottom-nav button {
+    flex: 1;
+    background: none; border: none;
+    color: var(--muted);
+    display: flex; flex-direction: column;
+    align-items: center; gap: 4px;
+    padding: 6px 0;
+    font-family: 'Oswald', sans-serif;
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.3px;
+    text-transform: uppercase;
+  }
+  nav.bottom-nav button svg { width: 21px; height: 21px; }
+  nav.bottom-nav button.active { color: var(--lime); }
+  nav.bottom-nav button:active { transform: scale(0.92); }
+
+  /* ---- Empty / placeholder states ---- */
+  .empty-state {
+    text-align: center;
+    padding: 90px 30px;
+  }
+  .empty-icon { font-size: 36px; margin-bottom: 14px; opacity: 0.7; }
+  .empty-state h3 {
+    font-family: 'Oswald', sans-serif;
+    font-size: 16px;
+    font-weight: 600;
+    margin-bottom: 8px;
+  }
+  .empty-state p {
+    font-size: 13px;
+    color: var(--muted);
+    line-height: 1.5;
+    max-width: 260px;
+    margin: 0 auto;
+  }
+</style>
+</head>
+<body>
+
+  <div class="topbar">
+    <div class="wordmark">
+      <span class="pitch">PITCH</span><span class="line">LINE</span>
+    </div>
+    <div class="clock"><span class="dot"></span>Sat 21 Jun · Updated 2m ago</div>
+  </div>
+
+  <div class="ticker-wrap">
+    <div class="ticker-track" id="tickerTrack">
+      <!-- duplicated set for seamless loop -->
+      <div class="ticker-item"><span class="t-live-dot"></span><span class="t-min">67'</span><span class="t-teams">Man Utd</span><span class="t-score">1-1</span><span class="t-teams">Spurs</span></div>
+      <div class="ticker-item"><span class="t-teams">PSG</span><span class="t-score">2-0</span><span class="t-teams">Lyon</span><span class="t-min" style="color:var(--muted)">FT</span></div>
+      <div class="ticker-item"><span class="t-live-dot"></span><span class="t-min">23'</span><span class="t-teams">Napoli</span><span class="t-score">0-0</span><span class="t-teams">Lazio</span></div>
+      <div class="ticker-item"><span class="t-teams">Ajax</span><span class="t-score">3-1</span><span class="t-teams">PSV</span><span class="t-min" style="color:var(--muted)">FT</span></div>
+      <div class="ticker-item"><span class="t-live-dot"></span><span class="t-min">81'</span><span class="t-teams">Porto</span><span class="t-score">2-1</span><span class="t-teams">Benfica</span></div>
+
+      <div class="ticker-item"><span class="t-live-dot"></span><span class="t-min">67'</span><span class="t-teams">Man Utd</span><span class="t-score">1-1</span><span class="t-teams">Spurs</span></div>
+      <div class="ticker-item"><span class="t-teams">PSG</span><span class="t-score">2-0</span><span class="t-teams">Lyon</span><span class="t-min" style="color:var(--muted)">FT</span></div>
+      <div class="ticker-item"><span class="t-live-dot"></span><span class="t-min">23'</span><span class="t-teams">Napoli</span><span class="t-score">0-0</span><span class="t-teams">Lazio</span></div>
+      <div class="ticker-item"><span class="t-teams">Ajax</span><span class="t-score">3-1</span><span class="t-teams">PSV</span><span class="t-min" style="color:var(--muted)">FT</span></div>
+      <div class="ticker-item"><span class="t-live-dot"></span><span class="t-min">81'</span><span class="t-teams">Porto</span><span class="t-score">2-1</span><span class="t-teams">Benfica</span></div>
+    </div>
+  </div>
+
+  <!-- ===== SCREEN: PICKS ===== -->
+  <div id="screen-picks" class="screen">
+
+  <!-- Hero: Best Pick of the Day, visible instantly -->
+  <div class="hero">
+    <div class="hero-eyebrow"><span class="bar"></span>Best Pick of the Day</div>
+    <div class="matchup">
+      <div class="teams">
+        <div class="team-row pick">
+          <div class="crest" data-fallback="A"><img src="https://upload.wikimedia.org/wikipedia/en/5/53/Arsenal_FC.svg" alt="Arsenal" onerror="this.parentElement.textContent=this.parentElement.dataset.fallback"></div>
+          <div class="team-name">Arsenal</div>
+        </div>
+        <div class="team-row">
+          <div class="crest" data-fallback="C"><img src="https://upload.wikimedia.org/wikipedia/en/c/cc/Chelsea_FC.svg" alt="Chelsea" onerror="this.parentElement.textContent=this.parentElement.dataset.fallback"></div>
+          <div class="team-name">Chelsea</div>
+        </div>
+        <div class="vs-meta">Premier League · Emirates Stadium · 17:30</div>
+      </div>
+      <div class="dial">
+        <svg width="84" height="84" viewBox="0 0 84 84">
+          <circle class="dial-track" cx="42" cy="42" r="36" fill="none" stroke-width="7"/>
+          <circle class="dial-progress" cx="42" cy="42" r="36" fill="none" stroke-width="7"
+            stroke-dasharray="226.2" stroke-dashoffset="72.4"/>
+        </svg>
+        <div class="dial-label">
+          <div class="pct">68%</div>
+          <div class="pct-tag">Home</div>
+        </div>
+      </div>
+    </div>
+    <div class="hero-footer">
+      <div class="tags">
+        <span class="tag">Elo +142</span>
+        <span class="tag">H2H 4-1</span>
+      </div>
+      <button class="btn-detail">Breakdown →</button>
+    </div>
+  </div>
+
+  <div class="section-head">
+    <h2>Today's Fixtures</h2>
+    <span class="count">06 matches</span>
+  </div>
+
+  <div class="matchlist">
+    <div class="row high">
+      <div class="league-strip"></div>
+      <div class="row-main">
+        <div class="row-teams">
+          <span class="crest-sm"><img src="https://upload.wikimedia.org/wikipedia/en/e/eb/Manchester_City_FC_badge.svg" onerror="this.style.display='none'"></span>Man City vs Liverpool<span class="crest-sm" style="margin-left:4px"><img src="https://upload.wikimedia.org/wikipedia/en/0/0c/Liverpool_FC.svg" onerror="this.style.display='none'"></span>
+        </div>
+        <div class="row-meta"><span>15:00</span><span class="pick-side">Pick: City</span></div>
+      </div>
+      <div class="row-pct"><div class="num">61%</div><div class="num-tag">CONF</div></div>
+    </div>
+
+    <div class="row mid">
+      <div class="league-strip"></div>
+      <div class="row-main">
+        <div class="row-teams">
+          <span class="crest-sm"><img src="https://upload.wikimedia.org/wikipedia/en/5/56/Real_Madrid_CF.svg" onerror="this.style.display='none'"></span>Real Madrid vs Sevilla<span class="crest-sm" style="margin-left:4px"><img src="https://upload.wikimedia.org/wikipedia/en/3/3b/Sevilla_FC_logo.svg" onerror="this.style.display='none'"></span>
+        </div>
+        <div class="row-meta"><span>20:00</span><span class="pick-side">Pick: Madrid</span></div>
+      </div>
+      <div class="row-pct"><div class="num">55%</div><div class="num-tag">CONF</div></div>
+    </div>
+
+    <div class="row low">
+      <div class="league-strip"></div>
+      <div class="row-main">
+        <div class="row-teams">
+          <span class="crest-sm"><img src="https://upload.wikimedia.org/wikipedia/commons/0/05/FC_Internazionale_Milano_2021.svg" onerror="this.style.display='none'"></span>Inter vs Roma<span class="crest-sm" style="margin-left:4px"><img src="https://upload.wikimedia.org/wikipedia/en/f/f7/AS_Roma_logo_%282017%29.svg" onerror="this.style.display='none'"></span>
+        </div>
+        <div class="row-meta"><span>Tomorrow · 18:00</span><span class="pick-side">Pick: Draw</span></div>
+      </div>
+      <div class="row-pct"><div class="num">42%</div><div class="num-tag">CONF</div></div>
+    </div>
+
+    <div class="row high">
+      <div class="league-strip"></div>
+      <div class="row-main">
+        <div class="row-teams">
+          <span class="crest-sm"><img src="https://upload.wikimedia.org/wikipedia/commons/1/1b/FC_Bayern_M%C3%BCnchen_logo_%282017%29.svg" onerror="this.style.display='none'"></span>Bayern vs Dortmund<span class="crest-sm" style="margin-left:4px"><img src="https://upload.wikimedia.org/wikipedia/commons/6/67/Borussia_Dortmund_logo.svg" onerror="this.style.display='none'"></span>
+        </div>
+        <div class="row-meta"><span>Tomorrow · 17:30</span><span class="pick-side">Pick: Bayern</span></div>
+      </div>
+      <div class="row-pct"><div class="num">64%</div><div class="num-tag">CONF</div></div>
+    </div>
+  </div>
+
+  </div>
+  <!-- ===== /SCREEN: PICKS ===== -->
+
+  <!-- ===== SCREEN: FIXTURES ===== -->
+  <div id="screen-fixtures" class="screen" style="display:none">
+    <div class="empty-state">
+      <div class="empty-icon">📅</div>
+      <h3>Fixtures, coming soon</h3>
+      <p>This is where every match this week will be listed, with filters by league.</p>
+    </div>
+  </div>
+
+  <!-- ===== SCREEN: LIVE ===== -->
+  <div id="screen-live" class="screen" style="display:none">
+    <div class="empty-state">
+      <div class="empty-icon">📊</div>
+      <h3>No live matches right now</h3>
+      <p>Live scores will appear here automatically once a match kicks off.</p>
+    </div>
+  </div>
+
+  <!-- ===== SCREEN: PROFILE ===== -->
+  <div id="screen-profile" class="screen" style="display:none">
+    <div class="empty-state">
+      <div class="empty-icon">👤</div>
+      <h3>Profile, coming soon</h3>
+      <p>Track your saved picks and prediction history here.</p>
+    </div>
+  </div>
+
+  <nav class="bottom-nav">
+    <button class="active" data-screen="picks">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12l7-7 7 7M5 12v8a1 1 0 001 1h4v-5h4v5h4a1 1 0 001-1v-8"/></svg>
+      Picks
+    </button>
+    <button data-screen="fixtures">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M3 10h18M8 2v4M16 2v4"/></svg>
+      Fixtures
+    </button>
+    <button data-screen="live">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
+      Live
+    </button>
+    <button data-screen="profile">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.5-7 8-7s8 3 8 7"/></svg>
+      Profile
+    </button>
+  </nav>
+
+  <script>
+    const buttons = document.querySelectorAll('.bottom-nav button');
+    const screens = document.querySelectorAll('.screen');
+
+    buttons.forEach(btn => {
+      btn.addEventListener('click', () => {
+        const target = btn.dataset.screen;
+
+        // toggle active button styling
+        buttons.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+
+        // toggle screen visibility
+        screens.forEach(s => s.style.display = 'none');
+        document.getElementById('screen-' + target).style.display = 'block';
+
+        // scroll to top on switch
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      });
+    });
+  </script>
+
+</body>
+</html>
