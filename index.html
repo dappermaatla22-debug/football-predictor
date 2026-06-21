@@ -546,10 +546,16 @@
 
   <!-- ===== SCREEN: LIVE ===== -->
   <div id="screen-live" class="screen" style="display:none">
-    <div class="empty-state">
-      <div class="empty-icon">📊</div>
-      <h3>No live matches right now</h3>
-      <p>Live scores will appear here automatically once a match kicks off.</p>
+    <div class="section-head">
+      <h2>Live Right Now</h2>
+      <span class="count" id="liveCount">…</span>
+    </div>
+    <div class="matchlist" id="liveMatchList">
+      <div class="empty-state">
+        <div class="empty-icon">⏳</div>
+        <h3>Loading live matches…</h3>
+        <p>Pulling real-time scores from the server.</p>
+      </div>
     </div>
   </div>
 
@@ -584,23 +590,87 @@
   <script>
     const buttons = document.querySelectorAll('.bottom-nav button');
     const screens = document.querySelectorAll('.screen');
+    let liveDataLoaded = false;
 
     buttons.forEach(btn => {
       btn.addEventListener('click', () => {
         const target = btn.dataset.screen;
 
-        // toggle active button styling
         buttons.forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
 
-        // toggle screen visibility
         screens.forEach(s => s.style.display = 'none');
         document.getElementById('screen-' + target).style.display = 'block';
 
-        // scroll to top on switch
         window.scrollTo({ top: 0, behavior: 'smooth' });
+
+        // Fetch real live data only the first time the Live tab is opened
+        if (target === 'live' && !liveDataLoaded) {
+          loadLiveMatches();
+        }
       });
     });
+
+    async function loadLiveMatches() {
+      const listEl = document.getElementById('liveMatchList');
+      const countEl = document.getElementById('liveCount');
+
+      try {
+        const res = await fetch('/api/fixtures');
+        const data = await res.json();
+
+        if (data.status !== 'success' || !data.response || !data.response.live) {
+          throw new Error('Unexpected response shape');
+        }
+
+        const matches = data.response.live;
+        liveDataLoaded = true;
+        countEl.textContent = matches.length + ' live';
+
+        if (matches.length === 0) {
+          listEl.innerHTML = `
+            <div class="empty-state">
+              <div class="empty-icon">📊</div>
+              <h3>No live matches right now</h3>
+              <p>Check back when a match kicks off.</p>
+            </div>`;
+          return;
+        }
+
+        // Build real match rows from the live API data
+        listEl.innerHTML = matches.map(m => {
+          const homeName = m.home?.name ?? 'Home';
+          const awayName = m.away?.name ?? 'Away';
+          const homeScore = m.home?.score ?? 0;
+          const awayScore = m.away?.score ?? 0;
+          const minute = m.liveTime?.short ?? '';
+
+          return `
+            <div class="row high">
+              <div class="league-strip"></div>
+              <div class="row-main">
+                <div class="row-teams">${homeName} vs ${awayName}</div>
+                <div class="row-meta">
+                  <span class="pick-side" style="color:var(--red)">● LIVE ${minute}</span>
+                </div>
+              </div>
+              <div class="row-pct">
+                <div class="num">${homeScore}-${awayScore}</div>
+                <div class="num-tag">SCORE</div>
+              </div>
+            </div>`;
+        }).join('');
+
+      } catch (err) {
+        listEl.innerHTML = `
+          <div class="empty-state">
+            <div class="empty-icon">⚠️</div>
+            <h3>Couldn't load live matches</h3>
+            <p>Something went wrong fetching real-time data. Try again shortly.</p>
+          </div>`;
+        console.error('Failed to load live matches:', err);
+      }
+    }
   </script>
 
 </body>
